@@ -2969,6 +2969,7 @@ if {$myposition == 1} {
             }
             puts "Timing test period of $duration in minutes"
             set testtime 0
+            global durmin
             set durmin $duration
             set duration [ expr $duration*60000 ]
             while {$testtime != $duration} {
