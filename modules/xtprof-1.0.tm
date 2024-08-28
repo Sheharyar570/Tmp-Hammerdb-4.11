@@ -360,6 +360,7 @@ set jobid [ hdb eval {select jobid from JOBMAIN order by datetime(timestamp) DES
 global durmin
 set dursec [expr $durmin*60]
 set vector_qps 0
+set recall [tsv::get vector recall]
 
 set vustoreport [ dict keys $monitortimings ]
 for { set vutri 0 } { $vutri < [llength $vustoreport] } { incr vutri } {
@@ -458,7 +459,7 @@ set sprocorder [ lreplace $sprocorder [ expr $so + 1 ] [ expr $so + 1 ] ]
 if { $xtjob_storage eq 1 } {
 foreach sproc $sprocorder {
 #Insert summary timings into JOBTIMING table, summary identified by summary column eq 1
-hdb eval [ subst {INSERT INTO JOBTIMING(jobid,vu,procname,calls,min_ms,avg_ms,max_ms,total_ms,p99_ms,p95_ms,p50_ms,sd,ratio_pct,summary,elapsed_ms) VALUES('$jobid',[llength $vustoreport],'[format "%s" [ string toupper $sproc]]',[format "%d" [dict get $monitortimings $vutr $sproc calls]],[format "%.3f" [dict get $monitortimings $vutr $sproc min]],[format "%.3f" [dict get $monitortimings $vutr $sproc avgms]],[format "%.3f" [dict get $monitortimings $vutr $sproc max]],[format "%.3f" [dict get $monitortimings $vutr $sproc totalms]],[format "%.3f" [dict get $monitortimings $vutr $sproc p99]],[format "%.3f" [dict get $monitortimings $vutr $sproc p95]],[format "%.3f" [dict get $monitortimings $vutr $sproc p50]],[format "%.3f" [dict get $monitortimings $vutr $sproc sd]],[format "%.3f" [dict get $monitortimings $vutr $sproc ratio] 37],1,$medianendms)} ]
+hdb eval [ subst {INSERT INTO JOBTIMING(jobid,vu,procname,calls,min_ms,avg_ms,max_ms,total_ms,p99_ms,p95_ms,p50_ms,sd,ratio_pct,summary,elapsed_ms) VALUES('$jobid',[llength $vustoreport],'[format "%s" [ string toupper $sproc]]',[format "%d" [dict get $sumtimings $sproc calls]],[format "%.3f" [dict get $sumtimings $sproc min]],[format "%.3f" [dict get $sumtimings $sproc avgms]],[format "%.3f" [dict get $sumtimings $sproc max]],[format "%.3f" [dict get $sumtimings $sproc totalms]],[format "%.3f" [dict get $sumtimings $sproc p99]],[format "%.3f" [dict get $sumtimings $sproc p95]],[format "%.3f" [dict get $sumtimings $sproc p50]],[format "%.3f" [dict get $sumtimings $sproc sd]],[format "%.3f" [dict get $sumtimings $sproc ratio] 37],1,$medianendms)} ]
 		}
 	} 
         puts $fd "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+"
@@ -476,6 +477,7 @@ foreach sproc $sprocorder {
             puts -nonewline $fd [format "SD: %.3f\t" [dict get $sumtimings $sproc sd]]
             puts $fd [format "RATIO: %.3f%c" [dict get $sumtimings $sproc ratio] 37]
 	}
+        puts $fd [format "VECTOR RECALL: %.2f\n" $recall]
         puts $fd "+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+"
 close $fd
 }

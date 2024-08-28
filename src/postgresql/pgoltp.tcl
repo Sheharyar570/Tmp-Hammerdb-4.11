@@ -2928,7 +2928,58 @@ if {$myposition == 1} {
             set lda1 [ ConnectToPostgres $host $port $sslmode $user $password $db ]
             if { $lda1 eq "Failed" } {
                 error "error, the database connection to $host could not be established"
-            } 
+            }
+
+            proc calc_recall {embeddings ground_truth k} {
+                set matched_embs 0
+                foreach emb $embeddings {
+                    if {[lsearch -exact $ground_truth $emb] != -1} {
+                        incr matched_embs
+                    }
+                }
+                set recall [expr {$matched_embs / double([llength $ground_truth])}]
+                return $recall
+            }
+
+            global vector_test_dataset vector_ground_truth
+            set k 10
+            set all_recalls {}
+
+            puts "CALCULATING RECALL"
+            for {set idx 0} {$idx < [expr [llength $vector_test_dataset] - 1]} {incr idx} {
+                set data [lindex $vector_test_dataset $idx]
+                set row [split $data "|"]
+
+                set id [lindex $row 0]
+                set emb [lindex $row 1]
+
+                set result [pg_exec $lda1 "SELECT id FROM public.pg_vector_collection ORDER BY embedding <-> '\[$emb\]' LIMIT $k"]
+                if {[pg_result $result -status] ni {"PGRES_TUPLES_OK" "PGRES_COMMAND_OK"}} {
+                    if { $RAISEERROR } {
+                        error "[pg_result $result -error]"
+                    } else {
+                        error "[pg_result $result -error]"
+                        puts "Vector query failed during recall calculation"
+                    }
+                    pg_result $result -clear
+                } else {
+                    set embeddings [pg_result $result -list]
+                    set gt_data [lindex $vector_ground_truth $id]
+                    set row [split $gt_data "|"]
+
+                    set n_id [lindex $row 0]
+                    set gt [lindex $row 1]
+                    set gt [lrange $gt 0 [expr $k-1]]
+                    set query_recall [calc_recall $embeddings $gt $k]
+                    lappend all_recalls $query_recall
+                    pg_result $result -clear
+                }
+            }
+            set recall [expr [expr {[tcl::mathop::+ {*}$all_recalls] / double([llength $all_recalls])}] * 100]
+            puts "Recall Score: $recall%"
+            tsv::set vector recall $recall
+            puts "RECALL CALCULATION COMPLETE"
+
             set ramptime 0
 	    puts [ CheckDBVersion $lda1 ]
             puts "Beginning rampup time of $rampup minutes"
@@ -3221,50 +3272,6 @@ if {$myposition == 1} {
             }
         }
 
-        proc semantic_search { lda k RAISEERROR ora_compatible pg_storedprocs } {
-            global vector_test_dataset 
-            upvar #1 vector_query_count vector_query_count
-            upvar #1 vector_data_idx vector_data_idx
-            set emb [ lindex $vector_test_dataset $vector_data_idx ]
-
-            set first_comma_index [string first "," $emb]
-            set id [string range $emb 0 [expr {$first_comma_index - 1}]]
-            set emb [string range $emb [expr {$first_comma_index + 2}] end] ;# +2 to skip comma and space
-            # Remove the quotes from id and emb
-            set id [string trim $id {"}]
-            set emb [string trim $emb {"}]
-            puts $vector_data_idx
-            if {[llength $emb] > 0} {
-                if { $ora_compatible eq "true" } {
-                    set result [pg_exec $lda "exec semantic_search('\[$emb\]',5)" ]
-                } else {
-                    if { $pg_storedprocs eq "true" } {
-                        set result [pg_exec $lda "call semantic_search('\[$emb\]', 5, array\[0,0\])"]
-                    } else {
-                        set result [ pg_exec_prepared $lda semantic_search {} {} "\[$emb\]" 5 ]
-                    }
-                }
-                if {[pg_result $result -status] ni {"PGRES_TUPLES_OK" "PGRES_COMMAND_OK"}} {
-                    if { $RAISEERROR } {
-                        error "[pg_result $result -error]"
-                    } else {
-                        error "[pg_result $result -error]"
-                        puts "Vector Level Procedure Error set RAISEERROR for Details"
-                    }
-                    pg_result $result -clear
-                } else {
-                    pg_result $result -clear
-                    set vector_data_idx [expr $vector_data_idx + 1]
-                    set vector_query_count [expr $vector_query_count + 1]
-                    if { [llength $vector_test_dataset] -1 <= $vector_data_idx } {
-                        set vector_data_idx 1
-                    }
-                }
-                puts "Total vector QPS: {$vector_query_count}"
-                puts "Vector data index: {$vector_data_idx}"
-            }
-        }
-
         proc fn_prep_statement { lda } {
             set prep_neword "prepare neword (INTEGER, INTEGER, INTEGER, INTEGER, INTEGER) as select neword(\$1,\$2,\$3,\$4,\$5,0)"
             set prep_payment "prepare payment (INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, INTEGER, NUMERIC, VARCHAR) AS select payment(\$1,\$2,\$3,\$4,\$5,\$6,\$7,'\$8','0',0)"
@@ -3347,13 +3354,10 @@ if {$myposition == 1} {
             upvar #1 vector_query_count vector_query_count
             upvar #1 vector_data_idx vector_data_idx
             set emb [ lindex $vector_test_dataset $vector_data_idx ]
-            
-            set first_comma_index [string first "," $emb]
-            set id [string range $emb 0 [expr {$first_comma_index - 1}]]
-            set emb [string range $emb [expr {$first_comma_index + 2}] end] ;# +2 to skip comma and space
-            # Remove the quotes from id and emb
-            set id [string trim $id {"}]
-            set emb [string trim $emb {"}]
+           
+            set row [split $emb "|"]
+            set id [lindex $row 0]
+            set emb [lindex $row 1]
 
             if {[llength $emb] > 0} {
                 if { $ora_compatible eq "true" } {
