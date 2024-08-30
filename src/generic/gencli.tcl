@@ -1406,6 +1406,10 @@ proc vurun {} {
         return
     }
     global _ED opmode jobid
+    upvar #0 dbdict dbdict
+    upvar #0 configpostgresql configpostgresql
+    tsv::set recallconfig dbdict $dbdict
+    tsv::set recallconfig configpostgresql $configpostgresql
 
     set jobid [guid]
     if { [jobmain $jobid run] eq 1 } {

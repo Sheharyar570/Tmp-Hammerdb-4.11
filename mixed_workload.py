@@ -1,5 +1,6 @@
 import subprocess
 import os
+import time
 tmpdir = os.getenv('TMP', "/tmp")
 
 dbhost = "172.17.0.2"
@@ -38,10 +39,27 @@ giset("commandline", "keepalive_margin", "90")
 # if result.returncode == 0:
 if True:
     # buildschema()
-    loadscript()
-    vudestroy()
-    print("TEST STARTED")
-    vuset('vu','4')
+    # loadscript()
+    # vudestroy()
+    # print("TEST STARTED")
+    # vuset('vu','4')
+    # vucreate()
+    # tcstart()
+    # tcstatus()
+    # jobid = tclpy.eval('vurun')
+    # vudestroy()
+    # tcstop()
+    # print("TEST COMPLETE")
+    # file_path = os.path.join(tmpdir , "pg_tprocc" )
+    # fd = open(file_path, "w")
+    # fd.write(jobid)
+    # fd.close()
+    # time.sleep(10)
+
+    print("STARTING RECALL CALCULATION")
+    diset('tpcc','pg_driver','test')
+    customscript("recall_calculation.tcl")
+    vuset("vu", "1")
     vucreate()
     tcstart()
     tcstatus()
@@ -49,8 +67,10 @@ if True:
     vudestroy()
     tcstop()
     print("TEST COMPLETE")
+    # TODO: Fix - logs are not being written to file
     file_path = os.path.join(tmpdir , "pg_tprocc" )
     fd = open(file_path, "w")
     fd.write(jobid)
     fd.close()
+    print("RECALL CALUCLATION COMPLETE")
 exit()
