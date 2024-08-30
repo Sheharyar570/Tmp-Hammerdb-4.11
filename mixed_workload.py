@@ -24,19 +24,20 @@ diset('tpcc','pg_dbase', dbname )
 diset('tpcc','pg_driver','timed')
 diset('tpcc','pg_total_iterations','10000000')
 diset('tpcc','pg_rampup','1')
-diset('tpcc','pg_duration','2')
+diset('tpcc','pg_duration','1')
 diset('tpcc','pg_allwarehouse','false')
 diset('tpcc','pg_timeprofile','true')
 diset('tpcc','pg_vacuum','false')
 giset("commandline", "keepalive_margin", "90")
 
-print("STARTED LOADING VECTOR DATA IN DB AND BUILDING INDEX")
-result = subprocess.run(["vectordbbench", "pgvectorhnsw", "--config-file", "/home/emumba/emumba/VDB/VectorDBBench/vectordb_bench/config-files/sample_config.yml"], capture_output=True)
-print(result)
-print("VECTOR DATA LOADED AND INDEX BUILD COMPLETE")
+# print("STARTED LOADING VECTOR DATA IN DB AND BUILDING INDEX")
+# result = subprocess.run(["vectordbbench", "pgvectorhnsw", "--config-file", "/home/emumba/emumba/VDB/VectorDBBench/vectordb_bench/config-files/sample_config.yml"], capture_output=True)
+# print(result)
+# print("VECTOR DATA LOADED AND INDEX BUILD COMPLETE")
 
-if result.returncode == 0:
-    buildschema()
+# if result.returncode == 0:
+if True:
+    # buildschema()
     loadscript()
     vudestroy()
     print("TEST STARTED")
