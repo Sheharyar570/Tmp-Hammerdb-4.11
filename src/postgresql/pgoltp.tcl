@@ -2845,8 +2845,31 @@ pg_disconnect $lda}
 }
 
 proc loadtimedpgtpcc { } {
-    global opmode _ED
+    global opmode _ED vindex
+    upvar #0 vectordbdict vectordbdict
     upvar #0 dbdict dbdict
+
+    if {[dict exists $vectordbdict $vindex]} {
+        set index_params [dict create]
+        set search_params [dict create]
+        set session_params [dict create]
+
+        foreach {key value} [dict get $vectordbdict $vindex] {
+            if {[string match "in_*" $key]} {
+                set param_key [string range $key 3 end]
+                dict set index_params $param_key $value
+            } elseif {[string match "se_*" $key]} {
+                set param_key [string range $key 3 end]
+                dict set search_params $param_key $value
+            } elseif {[string match "ss_*" $key]} {
+                set param_key [string range $key 3 end]
+                dict set session_params $param_key $value
+            }
+        }
+    } else {
+        error "Index configuration for $vindex not found in vectordbdict"
+    }
+
     if {[dict exists $dbdict postgresql library ]} {
         set library [ dict get $dbdict postgresql library ]
     } else { set library "Pgtcl" }
@@ -2861,6 +2884,10 @@ proc loadtimedpgtpcc { } {
         .ed_mainFrame.mainwin.textFrame.left.text fastinsert end "#!/usr/local/bin/tclsh8.6
 #EDITABLE OPTIONS##################################################
 set library $library ;# PostgreSQL Library
+set vindex $vindex ;# PostgreSQL Vector Index Alogrithm
+set search_params {$search_params} ;# Vector DB Dictionary
+set session_params {$session_params} ;# Vector DB Dictionary
+set index_params {$index_params} ;# Vector DB Dictionary
 set total_iterations $pg_total_iterations ;# Number of transactions before logging off
 set RAISEERROR \"$pg_raiseerror\" ;# Exit script on PostgreSQL (true or false)
 set KEYANDTHINK \"$pg_keyandthink\" ;# Time for user thinking and keying (true or false)
@@ -3048,7 +3075,7 @@ if {$myposition == 1} {
         } else {
             puts "Operating in Replica Mode, No Snapshots taken..."
         }
-    } elseif {$myposition <= $workload1vu} {
+    } elseif {0} {
         ######START OLTP WORKLOAD######
 
         #TIMESTAMP
@@ -3403,40 +3430,24 @@ if {$myposition == 1} {
             }
         }
 
-        # TODO set session parameters
-        
-        # TODO set search parameters
-        set result [pg_exec $lda "SET hnsw.ef_search=100"]
-        if {[pg_result $result -status] ni {"PGRES_TUPLES_OK" "PGRES_COMMAND_OK"}} {
-            if { $RAISEERROR } {
-                error "[pg_result $result -error]"
-            } else {
-                puts "Setting HNSW ef_search Query Error set RAISEERROR for Details"
+        proc update_session_params { lda } {
+            upvar #1 session_params session_params
+            upvar #1 vindex vindex
+            foreach {option val} $session_params {
+                set result [pg_exec $lda "SET $vindex.$option='$val'"]
+                if {[pg_result $result -status] ni {"PGRES_TUPLES_OK" "PGRES_COMMAND_OK"}} {
+                    puts "Error setting HNSW $option parameter: [pg_result $result -error]"
+                }
+                pg_result $result -clear
             }
-            pg_result $result -clear
         }
-
-        set result  [pg_exec $lda "SHOW max_parallel_workers"]
-        set max_parallel_workers [pg_result $result -list]
-        pg_result $result -clear
-        puts "Max parallel workers: $max_parallel_workers"
-
-        set result  [pg_exec $lda "SHOW maintenance_work_mem"]
-        set maintenance_work_mem [pg_result $result -list]
-        pg_result $result -clear
-        puts "Maintenance work mem: $maintenance_work_mem"
-        
-        set result  [pg_exec $lda "SHOW hnsw.ef_search"]
-        set hnsw_efsearch [pg_result $result -list]
-        pg_result $result -clear
-        puts "HNSW ef_search: $hnsw_efsearch"
-
+        update_session_params $lda
 
         global vector_test_dataset
         set vector_query_count 0
         set vector_data_idx 0
-        set k 10
-
+        set k [dict get $search_params k ]
+        set distance_metric [dict get $search_params distance ]
         #TODO good for debugging, can be removed 
         set counter 0
 
