@@ -164,6 +164,9 @@ def wsstatus(*args):
 def waittocomplete(*args):
     eval_hammerdb_command('waittocomplete',*args)
 
+def dvset(*args):
+    eval_hammerdb_command('dvset',*args)
+
 def source(filename):
     runscript(1)
     from pathlib import Path
