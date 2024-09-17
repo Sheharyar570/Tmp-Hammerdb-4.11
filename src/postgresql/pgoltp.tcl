@@ -2948,7 +2948,7 @@ proc CheckDBVersion { lda1 } {
         }
 
 set rema [ lassign [ findvuposition ] myposition totalvirtualusers ]
-set workload1vu [expr 0.8 * [expr $totalvirtualusers - 1]]
+set workload1vu [expr ceil([expr 0.8 * [expr $totalvirtualusers - 1]])]
 if {$myposition == 1} {
         ######MONITOR THREAD######
         if { $mode eq "Local" || $mode eq "Primary" } {
@@ -3042,6 +3042,7 @@ if {$myposition == 1} {
             pg_select $lda1 "select sum(d_next_o_id) from district" o_id_arr {
                 set end_nopm $o_id_arr(sum)
             }
+            global nopm tpm
             set tpm [ expr {($end_trans - $start_trans)/$durmin} ]
             set nopm [ expr {($end_nopm - $start_nopm)/$durmin} ]
             puts "[ expr $totalvirtualusers - 1 ] Active Virtual Users configured"
@@ -3080,7 +3081,7 @@ if {$myposition == 1} {
         } else {
             puts "Operating in Replica Mode, No Snapshots taken..."
         }
-    } elseif {0} {
+    } elseif {$myposition < $workload1vu} {
         ######START OLTP WORKLOAD######
 
         #TIMESTAMP
