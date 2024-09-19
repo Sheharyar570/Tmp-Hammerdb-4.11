@@ -3081,7 +3081,7 @@ if {$myposition == 1} {
         } else {
             puts "Operating in Replica Mode, No Snapshots taken..."
         }
-    } elseif {$myposition < $workload1vu} {
+    } elseif {$myposition <= $workload1vu} {
         ######START OLTP WORKLOAD######
 
         #TIMESTAMP
