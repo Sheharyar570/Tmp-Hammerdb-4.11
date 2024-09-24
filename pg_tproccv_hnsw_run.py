@@ -139,6 +139,9 @@ def configure_vectordb(ef_search: str, index: str, case: dict):
     dvset(index, "in_maintenance_work_mem", case["maintenance-work-mem"])
     dvset(index, "ino_ef_construction", case["ef-construction"])
     dvset(index, "ino_m", case["m"])
+    dvset("mixed_workload", case["mw_oltp_vector_vu_ratio"], "0.5")
+    #TODO: Update Vector table name here, vector table name is hardcoded in the script but it needs
+    # to be dynamic because it changes with the algorithm.
 
 def drop_tpcc_schema(db_config: dict):
     conn = psycopg2.connect(
@@ -212,13 +215,8 @@ def run_benchmark(case, db_config, hammerdb_config):
     else:
         base_command.append("--skip-load")
 
-    if case.get("search-serial", True):
-        base_command.append("--search-serial")
-    else:
-        base_command.append("--skip-search-serial")
-
     # Only build index from VDB
-    base_command.append("--search-concurrent")
+    base_command.append("--skip-search-serial")
     base_command.append("--skip-search-concurrent")
 
     base_command.extend([
@@ -291,6 +289,7 @@ def run_benchmark(case, db_config, hammerdb_config):
                     for vu in case["num-concurrency"]:
                         print(f"Running HammerDB TPC-CV with {vu} VUs")
                         run_tpccv(vu, output_dir)
+                        print("Sleeping for 30 seconds")
                         time.sleep(30)
                     
                     print("*************CALCULATING RECALL*************")
