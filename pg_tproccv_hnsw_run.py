@@ -193,7 +193,9 @@ def calculate_recall(output_dir: str):
     fd.write(jobid)
     fd.close()
 
-def run_benchmark(case, db_config, hammerdb_config):
+def run_benchmark(
+    case: dict, db_config: dict, hammerdb_config: dict, build_schema: bool
+):
     base_command = [
         "vectordbbench", "pgvectorhnsw",
         "--user-name", db_config['username'],
@@ -228,7 +230,6 @@ def run_benchmark(case, db_config, hammerdb_config):
         "--num-concurrency", ",".join(case["num-concurrency"]),
         "--concurrency-duration", str(case["concurrency-duration"])
     ])
-    build_schema = hammerdb_config.get("build_schema", True)
 
     run_count = case.get("run_count", 1)
     for run in range(run_count):
@@ -245,7 +246,6 @@ def run_benchmark(case, db_config, hammerdb_config):
                     command.append("--skip-drop-old")
                 if "--skip-load" not in command:
                     command.append("--skip-load")
-                build_schema = False # Don't HammerDB build schema if it's not the first run
             try:
                 random_number = random.randint(1, 100000)
                 print(f"Running command: {' '.join(command)}")
@@ -301,11 +301,14 @@ def run_benchmark(case, db_config, hammerdb_config):
 
 def main():
     config = load_config("config.json")
+    build_schema = True
     start_time = time.time()
     setup_database(config)
-    for case in config['cases']:
+    for i, case in enumerate(config['cases']):
+        if i > 0:
+            build_schema = False
         print(f"Running case: {case['db-label']}")
-        run_benchmark(case, config['database'], config['hammerdb'])
+        run_benchmark(case, config['database'], config['hammerdb'], build_schema)
     teardown_database(config)
     end_time = time.time()
     execution_time = end_time - start_time
