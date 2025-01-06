@@ -3333,6 +3333,7 @@ if {$myposition == 1} {
                 if { $KEYANDTHINK } { thinktime 5 }
             }
         }
+        puts "Rampup ended: [ getisotimestamp ]"
 
         proc neword { lda no_w_id w_id_input RAISEERROR ora_compatible pg_storedprocs } {
             neword_base $lda $no_w_id $w_id_input $RAISEERROR $ora_compatible $pg_storedprocs
@@ -3354,8 +3355,9 @@ if {$myposition == 1} {
             slev_base $lda $w_id $stock_level_d_id $RAISEERROR $ora_compatible $pg_storedprocs
         }
 
-        puts "STARTING ACTUAL RUN"
+        puts "Starting Actual Run: [ getisotimestamp ]"
         puts "Processing $total_iterations transactions with output suppressed..."
+
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
         for {set it 0} {$it < $total_iterations} {incr it} {
             if { [expr {$it % $abchk}] eq 0 } { if { [ time {if {  [ tsv::get application abort ]  } { break }} ] > $hi_t }  {  set  abchk [ expr {min(($abchk * 2), $abchk_mx)}]; set hi_t [ expr {$hi_t * 2} ] } }
@@ -3517,6 +3519,8 @@ if {$myposition == 1} {
         puts "End time (rampup): $end"
         puts "End Counter $counter"
         puts "Duration [expr {$end - $start}]"
+        puts "Rampup Ended: [ getisotimestamp ]"
+
 
         # TODO this can be moved to the top
         if [catch {package require xtprof} ] { error "Failed to load extended time profile functions" } else { namespace import xtprof::* }
@@ -3532,7 +3536,8 @@ if {$myposition == 1} {
         # 1) If total_iterations reached
         # 2) If the shared variable `abort` is set to true, which likely means the time completed
 
-        puts "STARTING ACTUAL RUN"
+        puts "Starting Actual Run: [ getisotimestamp ]"
+
         #TODO Can add conditional wait to sync all threads
         puts "Start time: $start"
         for {set it $counter} {$it < $total_iterations} {incr it} {
