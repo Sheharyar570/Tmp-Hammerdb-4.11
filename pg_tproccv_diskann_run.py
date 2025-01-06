@@ -143,7 +143,8 @@ def configure_vectordb(l_value_is: str, index: str, case: dict):
     dvset(index, "in_maintenance_work_mem", case["maintenance-work-mem"])
     dvset(index, "ino_max_neighbors", case["max-neighbors"])
     dvset(index, "ino_l_value_ib", case["l-value-ib"])
-    dvset("mixed_workload", "mw_oltp_vector_vu_ratio", case["mw_oltp_vector_vu_ratio"])
+    dvset("mixed_workload", "mw_oltp_vu", case["mw_oltp_vu"])
+    dvset("mixed_workload", "mw_vector_vu", case["mw_vector_vu"])
 
 def drop_tpcc_schema(db_config: dict):
     conn = psycopg2.connect(
