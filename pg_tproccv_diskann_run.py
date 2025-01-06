@@ -142,7 +142,7 @@ def configure_vectordb(l_value_is: str, index: str, case: dict):
     dvset(index, "in_max_parallel_workers", case["max-parallel-workers"])
     dvset(index, "in_maintenance_work_mem", case["maintenance-work-mem"])
     dvset(index, "ino_max_neighbors", case["max-neighbors"])
-    dvset(index, "ino_l_value_ib", case["l_value_ib"])
+    dvset(index, "ino_l_value_ib", case["l-value-ib"])
     dvset("mixed_workload", "mw_oltp_vector_vu_ratio", case["mw_oltp_vector_vu_ratio"])
 
 def drop_tpcc_schema(db_config: dict):
@@ -226,7 +226,7 @@ def run_benchmark(
         "--case-type", case["case-type"],
         "--maintenance-work-mem", case["maintenance-work-mem"],
         "--max-parallel-workers", str(case["max-parallel-workers"]),
-        "--l-value-ib", str(case["l_value_ib"]),
+        "--l-value-ib", str(case["l-value-ib"]),
         "--max-neighbors", str(case["max-neighbors"]),
         "--k", str(case["k"]),
         "--concurrency-duration", str(case["concurrency-duration"])
@@ -235,7 +235,7 @@ def run_benchmark(
 
     for run in range(run_count):
         print(f"Starting run {run + 1} of {run_count} for case: {case['db-label']}")
-        for i, l_value_is in enumerate(case["l_value_is"]):
+        for i, l_value_is in enumerate(case["l-value-is"]):
             configure_hammerdb(db_config, hammerdb_config)
             configure_vectordb(l_value_is, hammerdb_config["vindex"], case)
             command = base_command + ["--l-value-is", str(l_value_is)]
@@ -252,7 +252,7 @@ def run_benchmark(
             try:
                 random_number = random.randint(1, 100000)
                 print(f"Running command: {' '.join(command)}")
-                output_dir = f"results/pgdiskann/diskann/{case['db-label']}/{db_config['provider']}/{db_config['instance_type']}-{str(case['max-neighbors'])}-{str(case['l_value_ib'])}-{l_value_is}-{case['case-type']}-{run}-{random_number}"
+                output_dir = f"results/pgdiskann/diskann/{case['db-label']}/{db_config['provider']}/{db_config['instance_type']}-{str(case['max-neighbors'])}-{str(case['l-value-ib'])}-{l_value_is}-{case['case-type']}-{run}-{random_number}"
                 os.environ["RESULTS_LOCAL_DIR"] = output_dir
 
                 os.makedirs(output_dir, exist_ok=True)
