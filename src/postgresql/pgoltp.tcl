@@ -2873,7 +2873,8 @@ proc loadtimedpgtpcc { } {
     } else {
         error "Index configuration for $vindex not found in vectordbdict"
     }
-    set mw_vu_ratio [dict get $vectordbdict mixed_workload mw_oltp_vector_vu_ratio]
+    set mw_oltp_vu [dict get $vectordbdict mixed_workload mw_oltp_vu]
+    set mw_vector_vu [dict get $vectordbdict mixed_workload mw_vector_vu]
     set vector_table_name [dict get $vectordbdict mixed_workload vector_table_name]
 
     if {[dict exists $dbdict postgresql library ]} {
@@ -2895,7 +2896,8 @@ set search_params {$search_params} ;# Vector DB Dictionary
 set session_params {$session_params} ;# Vector DB Dictionary
 set index_params {$index_params} ;# Vector DB Dictionary
 set index_creation_with_options {$index_creation_with_options} ;# Vector DB Dictionary
-set mw_vu_ratio $mw_vu_ratio ;# Mixed Workload VUs Ratio
+set mw_oltp_vu $mw_oltp_vu ;# Mixed Workload VUs Ratio
+set mw_vector_vu $mw_vector_vu ;# Mixed Workload VUs Ratio
 set vector_table_name $vector_table_name ;# Vector table name used in VDBBench
 set total_iterations $pg_total_iterations ;# Number of transactions before logging off
 set RAISEERROR \"$pg_raiseerror\" ;# Exit script on PostgreSQL (true or false)
@@ -2952,7 +2954,6 @@ proc CheckDBVersion { lda1 } {
         }
 
 set rema [ lassign [ findvuposition ] myposition totalvirtualusers ]
-set workload1vu [expr [expr ceil([expr $mw_vu_ratio * [expr $totalvirtualusers - 1]])] + 1]
 if {$myposition == 1} {
         ######MONITOR THREAD######
         if { $mode eq "Local" || $mode eq "Primary" } {
@@ -3085,7 +3086,7 @@ if {$myposition == 1} {
         } else {
             puts "Operating in Replica Mode, No Snapshots taken..."
         }
-    } elseif {$myposition <= $workload1vu} {
+    } elseif {$myposition <= $mw_oltp_vu} {
         ######START OLTP WORKLOAD######
 
         #TIMESTAMP
