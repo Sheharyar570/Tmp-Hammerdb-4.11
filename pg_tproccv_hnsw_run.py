@@ -106,12 +106,13 @@ def query_configurations(config):
         print(f"Failed to query configurations: {e}")
         return {}
 
+
 def get_stats(config):
     with open('queries.json', 'r') as file:
         queries = json.load(file)
     try:
         conn = psycopg2.connect(
-            dbname=config['db-name'],
+            dbname=config['db_name'],
             user=config['username'],
             password=config['password'],
             host=config['host']

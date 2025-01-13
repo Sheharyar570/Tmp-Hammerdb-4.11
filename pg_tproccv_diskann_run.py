@@ -112,7 +112,7 @@ def get_stats(config):
         queries = json.load(file)
     try:
         conn = psycopg2.connect(
-            dbname=config['db-name'],
+            dbname=config['db_name'],
             user=config['username'],
             password=config['password'],
             host=config['host']
