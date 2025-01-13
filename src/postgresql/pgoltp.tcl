@@ -3012,6 +3012,12 @@ if {$myposition == 1} {
             set durmin $duration
             set duration [ expr $duration*60000 ]
             tsv::set application ramp_done 1
+
+            puts "Wait for 2 seconds before the actual test starts"
+            tsv::set application threads_synced 0
+            after 2000
+            tsv::set application threads_synced 1
+
             while {$testtime != $duration} {
                 if { [ tsv::get application abort ] } { break } else { after 6000 }
                 set testtime [ expr $testtime+6000 ]
@@ -3086,12 +3092,16 @@ if {$myposition == 1} {
         } else {
             puts "Operating in Replica Mode, No Snapshots taken..."
         }
-    } elseif {$myposition <= $mw_oltp_vu} {
+    } elseif {$myposition <= [expr $mw_oltp_vu + 1]} {
         ######START OLTP WORKLOAD######
 
         #TIMESTAMP
         proc gettimestamp { } {
             set tstamp [ clock format [ clock seconds ] -format %Y%m%d%H%M%S ]
+            return $tstamp
+        }
+        proc getisotimestamp { } {
+            set tstamp [ clock format [ clock seconds ] -format %Y-%m-%dT%H:%M:%S%z ]
             return $tstamp
         }
         #NEW ORDER
@@ -3360,11 +3370,16 @@ if {$myposition == 1} {
         puts "Processing $total_iterations transactions with output suppressed..."
 
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
+        while {1} {
+            if { [ tsv::get application threads_synced ] } {
+                break
+            }
+        }
         for {set it 0} {$it < $total_iterations} {incr it} {
             if { [expr {$it % $abchk}] eq 0 } { if { [ time {if {  [ tsv::get application abort ]  } { break }} ] > $hi_t }  {  set  abchk [ expr {min(($abchk * 2), $abchk_mx)}]; set hi_t [ expr {$hi_t * 2} ] } }
             set choice [ RandomNumber 1 23 ]
             if {$choice <= 10} {
-                if { $KEYANDTHINK } { keytime 18 }
+                if { $KEYANDTHINK } {f keytime 18 }
                 neword $lda $w_id $w_id_input $RAISEERROR $ora_compatible $pg_storedprocs
                 if { $KEYANDTHINK } { thinktime 12 }
             } elseif {$choice <= 20} {
@@ -3393,6 +3408,10 @@ if {$myposition == 1} {
 
         proc gettimestamp { } {
             set tstamp [ clock format [ clock seconds ] -format %Y%m%d%H%M%S ]
+            return $tstamp
+        }
+        proc getisotimestamp { } {
+            set tstamp [ clock format [ clock seconds ] -format %Y-%m-%dT%H:%M:%S%z ]
             return $tstamp
         }
 
@@ -3522,12 +3541,12 @@ if {$myposition == 1} {
         puts "Duration [expr {$end - $start}]"
         puts "Rampup Ended: [ getisotimestamp ]"
 
-
         # TODO this can be moved to the top
         if [catch {package require xtprof} ] { error "Failed to load extended time profile functions" } else { namespace import xtprof::* }
         proc semantic_search { lda emb k dist_op RAISEERROR ora_compatible pg_storedprocs } {
             semantic_search_base $lda $emb $k $dist_op $RAISEERROR $ora_compatible $pg_storedprocs
         }
+
         puts "Processing $total_iterations vector transactions with output suppressed..."
         set start [clock seconds]
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
@@ -3537,8 +3556,12 @@ if {$myposition == 1} {
         # 1) If total_iterations reached
         # 2) If the shared variable `abort` is set to true, which likely means the time completed
 
+        while {1} {
+            if { [ tsv::get application threads_synced ] } {
+                break
+            }
+        }
         puts "Starting Actual Run: [ getisotimestamp ]"
-
         #TODO Can add conditional wait to sync all threads
         puts "Start time: $start"
         for {set it $counter} {$it < $total_iterations} {incr it} {
