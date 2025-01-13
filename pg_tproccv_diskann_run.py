@@ -6,6 +6,7 @@ import subprocess
 import psycopg2
 from psycopg2 import sql
 import os
+import shutil
 
 os.environ["LOG_LEVEL"] = "DEBUG"
 
@@ -106,6 +107,35 @@ def query_configurations(config):
         print(f"Failed to query configurations: {e}")
         return {}
 
+def get_stats(config):
+    with open('queries.json', 'r') as file:
+        queries = json.load(file)
+    try:
+        conn = psycopg2.connect(
+            dbname=config['db-name'],
+            user=config['username'],
+            password=config['password'],
+            host=config['host']
+        )
+        cur = conn.cursor()
+        for item in queries:
+            query = item['query']
+            description = item['description']
+            print(f"\nRunning query: {description}")
+            try:
+                cur.execute(query)
+                rows = cur.fetchall()
+                headers = [desc[0] for desc in cur.description]
+                print(f"{' | '.join(headers)}")
+                for row in rows:
+                    print(f"{' | '.join(map(str, row))}")
+            except Exception as e:
+                print(f"Failed to run query: {e}")
+        conn.close()
+    except Exception as e:
+        print(f"Setup failed: {e}")
+    finally:
+        conn.close()
 
 def configure_hammerdb(db_config: dict, hammerdb_config: dict):
     dbset('db', hammerdb_config['db'])
@@ -181,6 +211,7 @@ def run_tpccv(vu, output_dir: str):
     fd.close()
 
 def calculate_recall(output_dir: str):
+    vudestroy()
     diset('tpcc','pg_driver','test')
     customscript("recall_calculation.tcl")
     vuset("vu", "1")
@@ -196,6 +227,16 @@ def calculate_recall(output_dir: str):
     fd = open(file_path, "w")
     fd.write(jobid)
     fd.close()
+
+def copy_log_and_config(output_directories: list):
+    for output_dir in output_directories:
+        try:
+            shutil.copy("out.log", output_dir)
+            print(f"Copied out.log to {output_dir}")
+            shutil.copy("config.json", output_dir)
+            print(f"Copied config.json to {output_dir}")
+        except Exception as e:
+            print(f"Failed to copy out.log to {output_dir}: {e}")
 
 def run_benchmark(
     case: dict, db_config: dict, hammerdb_config: dict, build_schema: bool
@@ -232,8 +273,9 @@ def run_benchmark(
         "--k", str(case["k"]),
         "--concurrency-duration", str(case["concurrency-duration"])
     ])
-    run_count = case.get("run_count", 1)  # Default to 1 if not specified
 
+    output_directories = []
+    run_count = case.get("run_count", 1)  # Default to 1 if not specified
     for run in range(run_count):
         print(f"Starting run {run + 1} of {run_count} for case: {case['db-label']}")
         for i, l_value_is in enumerate(case["l-value-is"]):
@@ -255,8 +297,8 @@ def run_benchmark(
                 print(f"Running command: {' '.join(command)}")
                 output_dir = f"results/pgdiskann/diskann/{case['db-label']}/{db_config['provider']}/{db_config['instance_type']}-{str(case['max-neighbors'])}-{str(case['l-value-ib'])}-{l_value_is}-{case['case-type']}-{run}-{random_number}"
                 os.environ["RESULTS_LOCAL_DIR"] = output_dir
-
                 os.makedirs(output_dir, exist_ok=True)
+                output_directories.append(output_dir)
 
                 with open(f"{output_dir}/log.txt", 'w') as f:
                     with redirect_stdout(f):
@@ -293,9 +335,18 @@ def run_benchmark(
                         buildschema()
                         vudestroy()
                     
-                    for vu in case["num-concurrency"]:
+                    for idx, vu in enumerate(case["num-concurrency"]):
+                        if idx == 0:
+                            diset("tpcc", "pg_rampup", "10")
+                        else:
+                            diset("tpcc", "pg_rampup", hammerdb_config["pg_rampup"])
+
+                        get_stats(db_config)
+                        f.flush()
                         print(f"Running HammerDB TPC-CV with {vu} VUs")
                         run_tpccv(vu, output_dir)
+                        get_stats(db_config)
+                        f.flush()
                         time.sleep(30)
                     
                     print("*************CALCULATING RECALL*************")
@@ -306,6 +357,8 @@ def run_benchmark(
             print("Sleeping for 30 sec")
             time.sleep(60)
 
+    return output_directories
+
 def main():
     config = load_config("config.json")
     build_schema = True
@@ -315,8 +368,8 @@ def main():
             build_schema = False
         print(f"Running case: {case['db-label']}")
         setup_database(config)
-
-        run_benchmark(case, config['database'], config['hammerdb'], build_schema)
+        output_directories = run_benchmark(case, config['database'], config['hammerdb'], build_schema)
+        copy_log_and_config(output_directories)
         teardown_database(config)
     end_time = time.time()
     execution_time = end_time - start_time
