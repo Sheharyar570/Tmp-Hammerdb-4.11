@@ -810,7 +810,7 @@ proc dbset { args } {
                     }
             }}
             vindex {
-                set valid_values {hnsw ivf_flat streaming_diskann}
+                set valid_values {hnsw ivf_flat pgdiskann}
                 if {[lsearch -exact $valid_values $val] != -1} {
                     set vindex $val
                     SQLiteUpdateKeyValue "generic" "vectordb" "vindex" $vindex
