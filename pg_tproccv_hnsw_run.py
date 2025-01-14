@@ -172,7 +172,8 @@ def configure_vectordb(ef_search: str, index: str, case: dict):
     dvset(index, "in_maintenance_work_mem", case["maintenance-work-mem"])
     dvset(index, "ino_ef_construction", case["ef-construction"])
     dvset(index, "ino_m", case["m"])
-    dvset("mixed_workload", "mw_oltp_vector_vu_ratio", case["mw_oltp_vector_vu_ratio"])
+    dvset("mixed_workload", "mw_oltp_vu", case["mw_oltp_vu"])
+    dvset("mixed_workload", "mw_vector_vu", case["mw_vector_vu"])
 
 def drop_tpcc_schema(db_config: dict):
     conn = psycopg2.connect(
@@ -344,7 +345,7 @@ def run_benchmark(
                         print(f"Running HammerDB TPC-CV with {vu} VUs")
                         run_tpccv(vu, output_dir)
                         print("Sleeping for 30 seconds")
-                        get_stats()
+                        get_stats(db_config)
                         f.flush()
                         time.sleep(30)
                     
