@@ -3475,6 +3475,7 @@ if {$myposition == 1} {
             upvar #1 session_params session_params
             upvar #1 vindex vindex
             foreach {option val} $session_params {
+                puts "Setting session param option $option, val $val"
                 set result [pg_exec $lda "SET $option='$val'"]
                 if {[pg_result $result -status] ni {"PGRES_TUPLES_OK" "PGRES_COMMAND_OK"}} {
                     puts "Error setting HNSW $option parameter: [pg_result $result -error]"
@@ -3486,6 +3487,7 @@ if {$myposition == 1} {
         proc set_index_params { lda } {
             upvar #1 index_params index_params
             foreach {option val} $index_params {
+                puts "Setting index param option $option, val $val"
                 set result [pg_exec $lda "SET $option='$val'"]
                 if {[pg_result $result -status] ni {"PGRES_TUPLES_OK" "PGRES_COMMAND_OK"}} {
                     puts "Error setting HNSW $option parameter: [pg_result $result -error]"

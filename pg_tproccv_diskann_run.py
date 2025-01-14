@@ -199,11 +199,11 @@ def run_tpccv(vu, output_dir: str):
     loadscript()
     vuset('vu', vu)
     vucreate()
-    tcstart()
-    tcstatus()
+    # tcstart()
+    # tcstatus()
     jobid = tclpy.eval('vurun')
     vudestroy()
-    tcstop()
+    # tcstop()
     print("TEST COMPLETE")
     file_path = os.path.join(output_dir, "tpccv_results.log")
     fd = open(file_path, "w")
@@ -216,11 +216,11 @@ def calculate_recall(output_dir: str):
     customscript("recall_calculation.tcl")
     vuset("vu", "1")
     vucreate()
-    tcstart()
+    # tcstart()
     tcstatus()
     jobid = tclpy.eval('vurun')
     vudestroy()
-    tcstop()
+    # tcstop()
     print("TEST COMPLETE")
     # TODO: Fix - logs are not being written to file
     file_path = os.path.join(output_dir, "tpccv_results.log")
@@ -336,7 +336,8 @@ def run_benchmark(
                         vudestroy()
                     
                     for idx, vu in enumerate(case["num-concurrency"]):
-                        if idx == 0:
+                        if idx == 1:
+                            # TODO: Remove
                             diset("tpcc", "pg_rampup", "10")
                         else:
                             diset("tpcc", "pg_rampup", hammerdb_config["pg_rampup"])
