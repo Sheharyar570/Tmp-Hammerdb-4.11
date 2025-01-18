@@ -330,7 +330,7 @@ def run_benchmark(
                     f.flush()
 
                     print("*************STARTING HAMMERDB SEARCH*************")
-                    if (i == 0 or run == 0) and build_schema:
+                    if (i == 0) or build_schema:
                         drop_tpcc_schema(db_config)
                         buildschema()
                         vudestroy()

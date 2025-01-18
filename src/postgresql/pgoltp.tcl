@@ -2853,6 +2853,7 @@ proc loadtimedpgtpcc { } {
         set index_params [dict create]
         set search_params [dict create]
         set session_params [dict create]
+        set bq_params [dict create]
         set index_creation_with_options [dict create]
 
         foreach {key value} [dict get $vectordbdict $vindex] {
@@ -2868,6 +2869,9 @@ proc loadtimedpgtpcc { } {
             } elseif {[string match "ino_*" $key]} {
                 set param_key [string range $key 4 end]
                 dict set index_creation_with_options $param_key $value
+            } elseif {[string match "bq_*" $key]} {
+                set param_key [string range $key 3 end]
+                dict set bq_params $param_key $value
             }
         }
     } else {
@@ -2896,6 +2900,7 @@ set search_params {$search_params} ;# Vector DB Dictionary
 set session_params {$session_params} ;# Vector DB Dictionary
 set index_params {$index_params} ;# Vector DB Dictionary
 set index_creation_with_options {$index_creation_with_options} ;# Vector DB Dictionary
+set bq_params {$bq_params} ;# Vector DB Dictionary
 set mw_oltp_vu $mw_oltp_vu ;# Mixed Workload VUs Ratio
 set mw_vector_vu $mw_vector_vu ;# Mixed Workload VUs Ratio
 set vector_table_name $vector_table_name ;# Vector table name used in VDBBench
@@ -3416,9 +3421,14 @@ if {$myposition == 1} {
         }
 
         proc semantic_search_base { lda emb k dist_op RAISEERROR ora_compatible pg_storedprocs } {
+            upvar #1 vindex vindex
             if {[llength $emb] > 0} {
                 # We won't be using stored procedures for vector search
-                set result [ pg_exec_prepared $lda knn {} {} "\[$emb\]" $k ]
+                if { $vindex == "hnsw_bq"} {
+                    set result [ pg_exec_prepared $lda knn {} {} "\[$emb\]" "\[$emb\]" $k ]
+                } else {
+                    set result [ pg_exec_prepared $lda knn {} {} "\[$emb\]" $k ]
+                }
                 if {[pg_result $result -status] ni {"PGRES_TUPLES_OK" "PGRES_COMMAND_OK"}} {
                     if { $RAISEERROR } {
                         error "[pg_result $result -error]"
@@ -3432,7 +3442,10 @@ if {$myposition == 1} {
 
         proc fn_prep_statement { lda dist_op } {
             upvar #1 vector_table_name vector_table_name
-            set prep_semantic_search "PREPARE knn(VECTOR, INT) AS SELECT id FROM $vector_table_name ORDER BY embedding $dist_op \$1 LIMIT \$2;"
+            upvar #1 bq_params bq_params
+            upvar #1 vindex vindex
+            set prep_semantic_search [get_vector_query $vector_table_name $dist_op $vindex $bq_params]
+
             set result [ pg_exec $lda $prep_semantic_search ]
             if {[pg_result $result -status] ni {"PGRES_TUPLES_OK" "PGRES_COMMAND_OK"}} {
                 error "[pg_result $result -error]"
@@ -3441,19 +3454,6 @@ if {$myposition == 1} {
             }
         }
 
-        proc get_distance_op { dist_op } {
-            set operator <=>
-            if { $dist_op eq "cosine" } {
-                set operator <=>
-            } elseif { $dist_op eq "euclidean" } {
-                set operator <->
-            } elseif { $dist_op eq "neg_inner_product" } {
-                set operator <#>
-            } elseif { $dist_op eq "taxicab" } {
-                set operator <+>
-            }
-            return $operator
-        }
 
         #RUN TPC-C
         set dist_op [ get_distance_op [dict get $search_params distance ] ]

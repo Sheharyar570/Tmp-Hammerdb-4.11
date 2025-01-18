@@ -172,6 +172,11 @@ def configure_vectordb(ef_search: str, index: str, case: dict):
     dvset(index, "in_maintenance_work_mem", case["maintenance-work-mem"])
     dvset(index, "ino_ef_construction", case["ef-construction"])
     dvset(index, "ino_m", case["m"])
+    if index == "hnsw_bq":
+        dvset(index, "bq_rerank_distance", case["rerank-distance-op"])
+        dvset(index, "bq_quantized_fetch_limit", case["quantized-fetch-limit"])
+        dvset(index, "bq_dim", case["dim"])
+        dvset(index, "bq_reranking", case["reranking"])
     dvset("mixed_workload", "mw_oltp_vu", case["mw_oltp_vu"])
     dvset("mixed_workload", "mw_vector_vu", case["mw_vector_vu"])
 
@@ -260,6 +265,16 @@ def run_benchmark(
     else:
         base_command.append("--skip-load")
 
+    if case.get("quantization-type"):
+        base_command.extend(["--quantization-type", case["quantization-type"]])
+        if case.get("quantization-type") == "bit" and case.get("reranking") == "true":
+            base_command.append("--reranking")
+        else:
+            base_command.append("--skip-reranking")
+
+    if case.get("quantized-fetch-limit"):
+        base_command.extend(["--quantized-fetch-limit", str(case["quantized-fetch-limit"])])
+
     # Only build index from VDB
     base_command.append("--skip-search-serial")
     base_command.append("--skip-search-concurrent")
@@ -329,7 +344,7 @@ def run_benchmark(
                     f.flush()
                     
                     print("*************STARTING HAMMERDB SEARCH*************")
-                    if (i == 0 or run == 0) and build_schema:
+                    if (i == 0) or build_schema:
                         drop_tpcc_schema(db_config)
                         buildschema()
                         vudestroy()
