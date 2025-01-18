@@ -382,6 +382,8 @@ def main():
     for i, case in enumerate(config['cases']):
         if i > 0:
             build_schema = False
+        # BYPASS schema builds
+        build_schema = True
         print(f"Running case: {case['db-label']}")
         output_directories = run_benchmark(case, config['database'], config['hammerdb'], build_schema)
         copy_log_and_config(output_directories)
