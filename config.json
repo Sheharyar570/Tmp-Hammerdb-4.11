@@ -6,13 +6,11 @@
     "db_name": "ann",
     "instance_type": "Standard_D8ds_v5",
     "provider": "azure",
-    "enable_seqscan": "on"
+    "enable_seqscan": "off"
   },
   "hammerdb": {
     "db": "pg",
     "bm": "TPC-C",
-    "vindex": "hnsw_bq",
-    "vector_table_name": "public.pg_vector_collection",
     "build_schema": false,
     "pg_driver": "timed",
     "pg_total_iterations": "10000000",
@@ -23,11 +21,13 @@
     "pg_allwarehouse": "false",
     "pg_timeprofile": "true",
     "pg_vacuum": "false",
-    "keepalive_margin": "90"
+    "keepalive_margin": "110"
   },
   "cases": [
     {
-      "db-label": "pgdiskann-mixed-test-13vu-oltp-200wh",  
+      "db-label": "hnsw-bq-mixed-test-13vu-oltp-200wh",  
+      "vindex": "hnsw_bq",
+      "vector_table_name": "public.pg_vector_collection",
       "drop_old": true,
       "load": true,
       "search-serial": false,
@@ -43,6 +43,27 @@
       "quantized-fetch-limit": 200,
       "dim": 1536,
       "rerank-distance-op": "hamming",
+      "num-concurrency": ["13", "16", "19", "22", "25", "28", "31", "34", "37", "40", "43"],
+      "concurrency-duration": 30,
+      "k": 10,
+      "mw_vector_vu": "3",
+      "mw_oltp_vu": "13",
+      "run_count": 3
+    },
+    {
+      "db-label": "hnsw-mixed-test-13vu-oltp-200wh",  
+      "vindex": "hnsw",
+      "vector_table_name": "public.pg_vector_collection",
+      "drop_old": true,
+      "load": true,
+      "search-serial": false,
+      "search-concurrent": false,
+      "case-type": "Performance1536D500K",
+      "maintenance-work-mem": "8GB",
+      "max-parallel-workers": 7,
+      "ef-search": [40],
+      "ef-construction": 128,
+      "m": 32,
       "num-concurrency": ["13", "16", "19", "22", "25", "28", "31", "34", "37", "40", "43"],
       "concurrency-duration": 30,
       "k": 10,

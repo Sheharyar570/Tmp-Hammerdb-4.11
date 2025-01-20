@@ -137,10 +137,10 @@ def get_stats(config):
     finally:
         conn.close()
 
-def configure_hammerdb(db_config: dict, hammerdb_config: dict):
+def configure_hammerdb(db_config: dict, hammerdb_config: dict, case: dict):
     dbset('db', hammerdb_config['db'])
     dbset('bm', hammerdb_config['bm'])
-    dbset( 'vindex', hammerdb_config['vindex'])
+    dbset( 'vindex', case['vindex'])
 
     diset('connection','pg_host', db_config['host'])
     diset('connection','pg_port', '5432')
@@ -162,7 +162,7 @@ def configure_hammerdb(db_config: dict, hammerdb_config: dict):
     diset('tpcc','pg_timeprofile', hammerdb_config['pg_timeprofile'])
     diset('tpcc','pg_vacuum', hammerdb_config['pg_vacuum'])
     giset("commandline", "keepalive_margin", hammerdb_config['keepalive_margin'])
-    dvset("mixed_workload", "vector_table_name", hammerdb_config["vector_table_name"])
+    dvset("mixed_workload", "vector_table_name", case["vector_table_name"])
 
 def configure_vectordb(ef_search: str, index: str, case: dict):
     dvset(index, "ss_hnsw.ef_search", ef_search)
@@ -295,8 +295,8 @@ def run_benchmark(
     for run in range(run_count):
         print(f"Starting run {run + 1} of {run_count} for case: {case['db-label']}")
         for i, ef_search in enumerate(case["ef-search"]):
-            configure_hammerdb(db_config, hammerdb_config)
-            configure_vectordb(ef_search, hammerdb_config["vindex"], case)
+            configure_hammerdb(db_config, hammerdb_config, case)
+            configure_vectordb(ef_search, case["vindex"], case)
             command = base_command + ["--ef-search", str(ef_search)]
             if i > 0 or run > 0:
                 # Remove conflicting --drop-old and --load flags
@@ -344,7 +344,7 @@ def run_benchmark(
                     f.flush()
                     
                     print("*************STARTING HAMMERDB SEARCH*************")
-                    if (i == 0) or build_schema:
+                    if build_schema:
                         drop_tpcc_schema(db_config)
                         buildschema()
                         vudestroy()
@@ -365,7 +365,7 @@ def run_benchmark(
                         time.sleep(30)
                     
                     print("*************CALCULATING RECALL*************")
-                    calculate_recall(output_dir)
+                    # calculate_recall(output_dir)
                     print("*************END*************")
             except subprocess.CalledProcessError as e:
                 print(f"Benchmark failed: {e}")
@@ -387,6 +387,7 @@ def main():
         print(f"Running case: {case['db-label']}")
         output_directories = run_benchmark(case, config['database'], config['hammerdb'], build_schema)
         copy_log_and_config(output_directories)
+        time.sleep(120)
     teardown_database(config)
     end_time = time.time()
     execution_time = end_time - start_time

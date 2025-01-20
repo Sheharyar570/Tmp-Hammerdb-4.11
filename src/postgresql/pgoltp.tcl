@@ -2929,6 +2929,7 @@ set db \"$pg_dbase\" ;# Database containing the TPC Schema
 if [catch {package require $library} message] { error "Failed to load $library - $message" }
 if [catch {::tcl::tm::path add modules} ] { error "Failed to find modules directory" }
 if [catch {package require tpcccommon} ] { error "Failed to load tpcc common functions" } else { namespace import tpcccommon::* }
+if [catch {package require tpccvcommon} ] { error "Failed to load tpccv common functions" } else { namespace import tpccvcommon::* }
 
 if { [ chk_thread ] eq "FALSE" } {
     error "PostgreSQL Timed Script must be run in Thread Enabled Interpreter"
@@ -2972,9 +2973,20 @@ if {$myposition == 1} {
             if { $lda1 eq "Failed" } {
                 error "error, the database connection to $host could not be established"
             }
-
+            
+            
+            tsv::set application vector_data_loaded 0
+            puts "Loading vector data from ./dataset/vector/test/output.csv"
+            tsv::set application vector_test_dataset [ load_vector_data "./dataset/vector/test/test-10k.csv" "false" ]
+            puts "Vector data loaded successfully"
+            tsv::set application vector_data_loaded 1
             set ramptime 0
-	    puts [ CheckDBVersion $lda1 ]
+
+            tsv::set application sync_before_ramup 0
+            after 23000
+            tsv::set application sync_before_ramup 1
+
+	        puts [ CheckDBVersion $lda1 ]
             puts "Beginning rampup time of $rampup minutes"
             set rampup [ expr $rampup*60000 ]
             while {$ramptime != $rampup} {
@@ -3018,9 +3030,8 @@ if {$myposition == 1} {
             set duration [ expr $duration*60000 ]
             tsv::set application ramp_done 1
 
-            puts "Wait for 2 seconds before the actual test starts"
             tsv::set application threads_synced 0
-            after 2000
+            after 15000
             tsv::set application threads_synced 1
 
             while {$testtime != $duration} {
@@ -3100,6 +3111,11 @@ if {$myposition == 1} {
     } elseif {$myposition <= [expr $mw_oltp_vu + 1]} {
         ######START OLTP WORKLOAD######
 
+        while {1} {
+            if { [ tsv::get application vector_data_loaded ] } {
+                break
+            }
+        }
         #TIMESTAMP
         proc gettimestamp { } {
             set tstamp [ clock format [ clock seconds ] -format %Y%m%d%H%M%S ]
@@ -3318,6 +3334,11 @@ if {$myposition == 1} {
         }
         set stock_level_d_id  [ RandomNumber 1 $d_id_input ]
 
+        while {1} {
+            if { [ tsv::get application sync_before_ramup ] } {
+                break
+            }
+        }
         puts "Processing $total_iterations transactions with output suppressed..."
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
         for {set it 0} {$it < $total_iterations} {incr it} {
@@ -3410,6 +3431,11 @@ if {$myposition == 1} {
         pg_disconnect $lda
     } else {
         ######START VECTOR WORKLOAD######
+        while {1} {
+            if { [ tsv::get application vector_data_loaded ] } {
+                break
+            }
+        }
 
         proc gettimestamp { } {
             set tstamp [ clock format [ clock seconds ] -format %Y%m%d%H%M%S ]
@@ -3497,13 +3523,17 @@ if {$myposition == 1} {
         }
         set_session_params $lda
 
-        global vector_test_dataset
         set vector_query_count 0
-        set vector_data_idx 0
+        set vector_data_idx [RandomNumber 1 [llength  [ tsv::get application vector_test_dataset] ]]
         set k [dict get $search_params k ]
         #TODO good for debugging, can be removed 
         set counter 0
 
+        while {1} {
+            if { [ tsv::get application sync_before_ramup ] } {
+                break
+            }
+        }
         puts "Processing $total_iterations vector transactions with output suppressed..."
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
         
@@ -3521,7 +3551,7 @@ if {$myposition == 1} {
                 puts "Ramp up time is complete, moving on..."
                 break
             }
-            set row [ lindex $vector_test_dataset $vector_data_idx ] 
+            set row [ lindex [ tsv::get application vector_test_dataset ] $vector_data_idx ] 
             set emb [lindex $row 1]
 
             if { $KEYANDTHINK } { keytime 2 }
@@ -3530,7 +3560,7 @@ if {$myposition == 1} {
             incr counter
             incr vector_data_idx
             incr vector_query_count
-            if { [expr [llength $vector_test_dataset] - 1 ] <= $vector_data_idx } {
+            if { [expr [ llength [ tsv::get application vector_test_dataset ] ] - 1 ] <= $vector_data_idx } {
                 set vector_data_idx 0
             }
             #TODO remove before final push. This is good for verification
@@ -3568,7 +3598,7 @@ if {$myposition == 1} {
         puts "Start time: $start"
         for {set it $counter} {$it < $total_iterations} {incr it} {
             if { [expr {$it % $abchk}] eq 0 } { if { [ time {if {  [ tsv::get application abort ]  } { break }} ] > $hi_t }  {  set  abchk [ expr {min(($abchk * 2), $abchk_mx)}]; set hi_t [ expr {$hi_t * 2} ] } }
-            set row [ lindex $vector_test_dataset $vector_data_idx ] 
+            set row [ lindex [ tsv::get application vector_test_dataset ] $vector_data_idx ] 
             set emb [lindex $row 1]
 
             if { $KEYANDTHINK } { keytime 2 }
@@ -3577,7 +3607,7 @@ if {$myposition == 1} {
             incr counter
             incr vector_data_idx
             incr vector_query_count
-            if { [expr [llength $vector_test_dataset] - 1 ] <= $vector_data_idx } {
+            if { [expr [llength [ tsv::get application vector_test_dataset ] ] - 1 ] <= $vector_data_idx } {
                 set vector_data_idx 0
             }
             #TODO remove before final push. This is good for verification
