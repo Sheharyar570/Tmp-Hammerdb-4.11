@@ -2974,11 +2974,11 @@ if {$myposition == 1} {
                 error "error, the database connection to $host could not be established"
             }
             
-            
-            puts "Loading vector data from ./dataset/vector/test/output.csv"
+            # global vector_test_dataset
+            # puts "Loading vector data from ./dataset/vector/test/output.csv"
             tsv::set application vector_test_dataset [ load_vector_data "./dataset/vector/test/test-10k.csv" "false" ]
             puts "Vector data loaded successfully"
-            tsv::set application sync_before_ramup 1
+            tsv::set application sync_before_rampup 1
 
             set ramptime 0
 	        puts [ CheckDBVersion $lda1 ]
@@ -3326,7 +3326,7 @@ if {$myposition == 1} {
         puts "Processing $total_iterations transactions with output suppressed..."
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
         
-        while {![ tsv::get application sync_before_ramup ]} {}
+        while {![ tsv::get application sync_before_rampup ]} {}
         puts "Starting Ramp up: [ getisotimestamp ]"
         for {set it 0} {$it < $total_iterations} {incr it} {
             if { [expr {$it % $abchk}] eq 0 } { if { [ time {if {  [ tsv::get application abort ]  } { break }} ] > $hi_t }  {  set  abchk [ expr {min(($abchk * 2), $abchk_mx)}]; set hi_t [ expr {$hi_t * 2} ] } }
@@ -3507,9 +3507,15 @@ if {$myposition == 1} {
         set counter 0
         puts "Processing $total_iterations vector transactions with output suppressed..."
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
-        
-        while {![ tsv::get application sync_before_ramup ]} {}
-        set vector_data_idx [RandomNumber 1 [llength  [ tsv::get application vector_test_dataset] ]]
+
+        while {![ tsv::get application sync_before_rampup ]} {}
+        set vector_data_idx 0
+        # set vector_data_length [ llength  [ tsv::get application vector_test_dataset ] ]
+        set vector_test_dataset [ tsv::get application vector_test_dataset ]
+        set vector_data_length [ llength  $vector_test_dataset ]
+
+        puts "Vector data length: $vector_data_length"
+        #set vector_data_idx [RandomNumber 1 [llength  [ tsv::get application vector_test_dataset] ]]
         puts "Starting Ramp up: [ getisotimestamp ]"
 
         # First forloop is stop either:
@@ -3523,7 +3529,7 @@ if {$myposition == 1} {
                 puts "Ramp up time is complete, moving on..."
                 break
             }
-            set row [ lindex [ tsv::get application vector_test_dataset ] $vector_data_idx ] 
+            set row [ lindex $vector_test_dataset $vector_data_idx ] 
             set emb [lindex $row 1]
 
             if { $KEYANDTHINK } { keytime 2 }
@@ -3532,8 +3538,8 @@ if {$myposition == 1} {
             incr counter
             incr vector_data_idx
             incr vector_query_count
-            if { [expr [ llength [ tsv::get application vector_test_dataset ] ] - 1 ] <= $vector_data_idx } {
-                set vector_data_idx 0
+            if { [expr $vector_data_length - 1 ] <= $vector_data_idx } {
+            set vector_data_idx 0
             }
             #TODO remove before final push. This is good for verification
             # puts "Total vector QPS: {$vector_query_count}"
@@ -3560,7 +3566,7 @@ if {$myposition == 1} {
         puts "Starting Actual Run: [ getisotimestamp ]"
         for {set it $counter} {$it < $total_iterations} {incr it} {
             if { [expr {$it % $abchk}] eq 0 } { if { [ time {if {  [ tsv::get application abort ]  } { break }} ] > $hi_t }  {  set  abchk [ expr {min(($abchk * 2), $abchk_mx)}]; set hi_t [ expr {$hi_t * 2} ] } }
-            set row [ lindex [ tsv::get application vector_test_dataset ] $vector_data_idx ] 
+            set row [ lindex  $vector_test_dataset $vector_data_idx ] 
             set emb [lindex $row 1]
 
             if { $KEYANDTHINK } { keytime 2 }
@@ -3569,8 +3575,8 @@ if {$myposition == 1} {
             incr counter
             incr vector_data_idx
             incr vector_query_count
-            if { [expr [llength [ tsv::get application vector_test_dataset ] ] - 1 ] <= $vector_data_idx } {
-                set vector_data_idx 0
+            if { [expr $vector_data_length - 1 ] <= $vector_data_idx } {
+            set vector_data_idx 0
             }
             #TODO remove before final push. This is good for verification
             # puts "Total vector QPS: {$vector_query_count}"

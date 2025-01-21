@@ -212,7 +212,7 @@ proc load_virtual {}  {
     ed_stop_vuser 
     tsv::set application abort 0
     tsv::set application ramp_done 0
-    tsv::set application sync_before_ramup 0
+    tsv::set application sync_before_rampup 0
     tsv::set application threads_synced 0
 
     if {  [ info exists virtual_users ] } { ; } else { set virtual_users 1 }
