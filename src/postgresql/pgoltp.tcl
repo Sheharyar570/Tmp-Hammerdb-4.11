@@ -2975,17 +2975,12 @@ if {$myposition == 1} {
             }
             
             
-            tsv::set application vector_data_loaded 0
             puts "Loading vector data from ./dataset/vector/test/output.csv"
             tsv::set application vector_test_dataset [ load_vector_data "./dataset/vector/test/test-10k.csv" "false" ]
             puts "Vector data loaded successfully"
-            tsv::set application vector_data_loaded 1
-            set ramptime 0
-
-            tsv::set application sync_before_ramup 0
-            after 23000
             tsv::set application sync_before_ramup 1
 
+            set ramptime 0
 	        puts [ CheckDBVersion $lda1 ]
             puts "Beginning rampup time of $rampup minutes"
             set rampup [ expr $rampup*60000 ]
@@ -3029,9 +3024,8 @@ if {$myposition == 1} {
             set durmin $duration
             set duration [ expr $duration*60000 ]
             tsv::set application ramp_done 1
-
-            tsv::set application threads_synced 0
-            after 15000
+            
+            after 3000
             tsv::set application threads_synced 1
 
             while {$testtime != $duration} {
@@ -3111,11 +3105,6 @@ if {$myposition == 1} {
     } elseif {$myposition <= [expr $mw_oltp_vu + 1]} {
         ######START OLTP WORKLOAD######
 
-        while {1} {
-            if { [ tsv::get application vector_data_loaded ] } {
-                break
-            }
-        }
         #TIMESTAMP
         proc gettimestamp { } {
             set tstamp [ clock format [ clock seconds ] -format %Y%m%d%H%M%S ]
@@ -3333,14 +3322,12 @@ if {$myposition == 1} {
             set d_id_input $d_id_input_arr(max)
         }
         set stock_level_d_id  [ RandomNumber 1 $d_id_input ]
-
-        while {1} {
-            if { [ tsv::get application sync_before_ramup ] } {
-                break
-            }
-        }
+        
         puts "Processing $total_iterations transactions with output suppressed..."
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
+        
+        while {![ tsv::get application sync_before_ramup ]} {}
+        puts "Starting Ramp up: [ getisotimestamp ]"
         for {set it 0} {$it < $total_iterations} {incr it} {
             if { [expr {$it % $abchk}] eq 0 } { if { [ time {if {  [ tsv::get application abort ]  } { break }} ] > $hi_t }  {  set  abchk [ expr {min(($abchk * 2), $abchk_mx)}]; set hi_t [ expr {$hi_t * 2} ] } }
             if { [ tsv::get application ramp_done ] } {
@@ -3392,15 +3379,11 @@ if {$myposition == 1} {
             slev_base $lda $w_id $stock_level_d_id $RAISEERROR $ora_compatible $pg_storedprocs
         }
 
-        puts "Starting Actual Run: [ getisotimestamp ]"
         puts "Processing $total_iterations transactions with output suppressed..."
-
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
-        while {1} {
-            if { [ tsv::get application threads_synced ] } {
-                break
-            }
-        }
+
+        while {![tsv::get application threads_synced]} {} ; #Sync threads
+        puts "Starting Actual Run: [ getisotimestamp ]"
         for {set it 0} {$it < $total_iterations} {incr it} {
             if { [expr {$it % $abchk}] eq 0 } { if { [ time {if {  [ tsv::get application abort ]  } { break }} ] > $hi_t }  {  set  abchk [ expr {min(($abchk * 2), $abchk_mx)}]; set hi_t [ expr {$hi_t * 2} ] } }
             set choice [ RandomNumber 1 23 ]
@@ -3426,17 +3409,12 @@ if {$myposition == 1} {
                 if { $KEYANDTHINK } { thinktime 5 }
             }
         }
+        puts "Ending Actual Run: [ getisotimestamp ]"
 
         ######END OLTP WORKLOAD######
         pg_disconnect $lda
     } else {
         ######START VECTOR WORKLOAD######
-        while {1} {
-            if { [ tsv::get application vector_data_loaded ] } {
-                break
-            }
-        }
-
         proc gettimestamp { } {
             set tstamp [ clock format [ clock seconds ] -format %Y%m%d%H%M%S ]
             return $tstamp
@@ -3524,21 +3502,15 @@ if {$myposition == 1} {
         set_session_params $lda
 
         set vector_query_count 0
-        set vector_data_idx [RandomNumber 1 [llength  [ tsv::get application vector_test_dataset] ]]
         set k [dict get $search_params k ]
         #TODO good for debugging, can be removed 
         set counter 0
-
-        while {1} {
-            if { [ tsv::get application sync_before_ramup ] } {
-                break
-            }
-        }
         puts "Processing $total_iterations vector transactions with output suppressed..."
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
         
-        set start [clock seconds]
-        puts "Start time: $start"
+        while {![ tsv::get application sync_before_ramup ]} {}
+        set vector_data_idx [RandomNumber 1 [llength  [ tsv::get application vector_test_dataset] ]]
+        puts "Starting Ramp up: [ getisotimestamp ]"
 
         # First forloop is stop either:
         # 1) If total_iterations reached
@@ -3567,10 +3539,7 @@ if {$myposition == 1} {
             # puts "Total vector QPS: {$vector_query_count}"
             # puts "Vector data index: {$vector_data_idx}"
         }
-        set end [clock seconds]
-        puts "End time (rampup): $end"
         puts "End Counter $counter"
-        puts "Duration [expr {$end - $start}]"
         puts "Rampup Ended: [ getisotimestamp ]"
 
         # TODO this can be moved to the top
@@ -3579,23 +3548,16 @@ if {$myposition == 1} {
             semantic_search_base $lda $emb $k $dist_op $RAISEERROR $ora_compatible $pg_storedprocs
         }
 
-        puts "Processing $total_iterations vector transactions with output suppressed..."
-        set start [clock seconds]
-        set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
-        set counter 0
 
         # Second forloop is stopped either:
         # 1) If total_iterations reached
         # 2) If the shared variable `abort` is set to true, which likely means the time completed
+        puts "Processing $total_iterations vector transactions with output suppressed..."
+        set counter 0
+        set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
 
-        while {1} {
-            if { [ tsv::get application threads_synced ] } {
-                break
-            }
-        }
+        while {![tsv::get application threads_synced]} {} ; #Sync threads
         puts "Starting Actual Run: [ getisotimestamp ]"
-        #TODO Can add conditional wait to sync all threads
-        puts "Start time: $start"
         for {set it $counter} {$it < $total_iterations} {incr it} {
             if { [expr {$it % $abchk}] eq 0 } { if { [ time {if {  [ tsv::get application abort ]  } { break }} ] > $hi_t }  {  set  abchk [ expr {min(($abchk * 2), $abchk_mx)}]; set hi_t [ expr {$hi_t * 2} ] } }
             set row [ lindex [ tsv::get application vector_test_dataset ] $vector_data_idx ] 
@@ -3614,10 +3576,8 @@ if {$myposition == 1} {
             # puts "Total vector QPS: {$vector_query_count}"
             # puts "Vector data index: {$vector_data_idx}"
         }
-        set end [clock seconds]
-        puts "End time (final): $end"
         puts "End Counter $counter"
-        puts "Duration [expr {$end - $start}]"
+        puts "Ending Actual Run: [ getisotimestamp ]"
 
         ######END VECTOR WORKLOAD######
         pg_disconnect $lda
