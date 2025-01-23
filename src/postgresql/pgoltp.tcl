@@ -2974,9 +2974,8 @@ if {$myposition == 1} {
                 error "error, the database connection to $host could not be established"
             }
             
-            # global vector_test_dataset
             # puts "Loading vector data from ./dataset/vector/test/output.csv"
-            tsv::set application vector_test_dataset [ load_vector_data "./dataset/vector/test/test-10k.csv" "false" ]
+            tsv::set application vector_test_dataset [ load_vector_data "./dataset/vector/test/output.csv" "false" ]
             puts "Vector data loaded successfully"
             tsv::set application sync_before_rampup 1
 
@@ -3509,13 +3508,10 @@ if {$myposition == 1} {
         set abchk 1; set abchk_mx 1024; set hi_t [ expr {pow([ lindex [ time {if {  [ tsv::get application abort ]  } { break }} ] 0 ],2)}]
 
         while {![ tsv::get application sync_before_rampup ]} {}
-        set vector_data_idx 0
-        # set vector_data_length [ llength  [ tsv::get application vector_test_dataset ] ]
         set vector_test_dataset [ tsv::get application vector_test_dataset ]
         set vector_data_length [ llength  $vector_test_dataset ]
-
+        set vector_data_idx [RandomNumber 1 [llength  [ tsv::get application vector_test_dataset] ]]
         puts "Vector data length: $vector_data_length"
-        #set vector_data_idx [RandomNumber 1 [llength  [ tsv::get application vector_test_dataset] ]]
         puts "Starting Ramp up: [ getisotimestamp ]"
 
         # First forloop is stop either:
