@@ -4,6 +4,10 @@
         "query": "SELECT version();"
     },
     {
+        "description": "Postgresql AutoVacuum Setting",
+        "query": "SHOW autovacuum;"
+    },
+    {
         "description": "List of extensions installed on postgersql server",
         "query": "SELECT extname AS name, extversion AS version FROM pg_extension ORDER BY extname;"
     },

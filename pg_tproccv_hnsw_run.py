@@ -344,13 +344,13 @@ def run_benchmark(
                     f.flush()
                     
                     print("*************STARTING HAMMERDB SEARCH*************")
-                    if build_schema:
+                    if i == 0 and build_schema:
                         drop_tpcc_schema(db_config)
                         buildschema()
                         vudestroy()
                     
                     for idx, vu in enumerate(case["num-concurrency"]):
-                        if idx == 1:
+                        if idx == 0 and idx == 1:
                             # TODO: Remove
                             diset('tpcc','pg_rampup', "10")
                         else:
@@ -383,7 +383,7 @@ def main():
         if i > 0:
             build_schema = False
         # BYPASS schema builds
-        build_schema = True
+        build_schema = False
         print(f"Running case: {case['db-label']}")
         output_directories = run_benchmark(case, config['database'], config['hammerdb'], build_schema)
         copy_log_and_config(output_directories)
